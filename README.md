@@ -1,16 +1,24 @@
-# mentimeter_app
+# Mentimeter Clone App
 
-A new Flutter project.
+Aplikasi presentasi interaktif _real-time_ yang dibangun dengan Flutter dan Supabase.
 
-## Getting Started
+## Fitur Utama
 
-This project is a starting point for a Flutter application.
+- **Autentikasi:** Login & Registrasi dengan enkripsi Supabase.
+- **CRUD Presentasi:** Membuat, mengelola, dan menghapus sesi presentasi.
+- **Manajemen Slide:** Dukungan tipe Polling, Kuis, dan Word Cloud.
+- **Live Presentasi:** Update grafik secara _real-time_ menggunakan Supabase Realtime.
+- **Join Kelas:** Bergabung melalui 6 digit kode atau _QR Code Scanner_.
 
-A few resources to get you started if this is your first Flutter project:
+## Teknologi
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- **Frontend:** Flutter (Mobile)
+- **Backend:** Supabase (Database, Auth, Storage, Realtime)
+- **State Management:** Flutter `StatefulWidget`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Cara Menjalankan
+
+1. Clone repository ini.
+2. Jalankan `flutter pub get`.
+3. Pastikan `Developer Mode` di Windows/Android sudah aktif.
+4. Jalankan `flutter run`.
