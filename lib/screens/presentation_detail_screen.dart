@@ -103,7 +103,6 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
     );
   }
 
-  // INI BAGIAN PENTING: Navigasi yang benar ke AddSlideScreen
   void _navigateToAddSlide() {
     Navigator.push(
       context,
@@ -211,10 +210,22 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
                               'QR Code',
                               textAlign: TextAlign.center,
                             ),
-                            content: QrImageView(
-                              data: widget.joinCode,
-                              size: 200,
+                            // Perbaikan: QrImageView dibungkus SizedBox agar Web tidak bingung merendernya
+                            content: SizedBox(
+                              width: 200,
+                              height: 200,
+                              child: QrImageView(
+                                data: widget.joinCode,
+                                version: QrVersions.auto,
+                                size: 200.0,
+                              ),
                             ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Tutup'),
+                              ),
+                            ],
                           ),
                         );
                       },
@@ -242,8 +253,7 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 TextButton.icon(
-                  onPressed:
-                      _navigateToAddSlide, // Memanggil fungsi navigasi yang benar
+                  onPressed: _navigateToAddSlide,
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Tambah Slide'),
                 ),

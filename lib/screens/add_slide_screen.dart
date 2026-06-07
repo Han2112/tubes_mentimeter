@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -18,15 +19,13 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
 
   String _selectedType = 'polling';
   bool _isLoading = false;
-  File? _imageFile;
+  XFile? _imageFile;
 
-  // List controller untuk opsi jawaban dinamis
   final List<TextEditingController> _optionControllers = [
     TextEditingController(),
     TextEditingController(),
   ];
 
-  // Menyimpan index jawaban yang benar (jika tipe slide adalah 'quiz')
   int _correctOptionIndex = 0;
 
   @override
@@ -39,16 +38,20 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
 
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
+      if (pickedFile != null) {
+        setState(() {
+          _imageFile = pickedFile;
+        });
+      }
+    } catch (e) {
+      _showSnackBar('Gagal membuka galeri: $e', isError: true);
     }
   }
 
@@ -70,7 +73,6 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
     setState(() {
       _optionControllers[index].dispose();
       _optionControllers.removeAt(index);
-      // Reset correct option jika yang dihapus adalah jawaban benar saat ini
       if (_correctOptionIndex >= _optionControllers.length) {
         _correctOptionIndex = 0;
       }
@@ -83,7 +85,6 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
       return;
     }
 
-    // Validasi opsi jika tipe polling atau quiz
     if (_selectedType != 'word_cloud') {
       for (var controller in _optionControllers) {
         if (controller.text.trim().isEmpty) {
@@ -101,27 +102,36 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
     try {
       String? imageUrl;
 
-      // 1. Upload Gambar (Jika ada)
+      // Logika Upload Gambar (Kompatibel untuk Web & Mobile)
       if (_imageFile != null) {
-        final fileExt = _imageFile!.path.split('.').last;
+        final bytes = await _imageFile!.readAsBytes();
+        final fileExt = _imageFile!.name.split('.').last.toLowerCase();
         final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
 
         await _supabase.storage
             .from('slide_images')
-            .upload(fileName, _imageFile!);
+            .uploadBinary(
+              fileName,
+              bytes,
+              fileOptions: FileOptions(
+                contentType: 'image/$fileExt',
+                upsert: true,
+              ),
+            );
+
         imageUrl = _supabase.storage
             .from('slide_images')
             .getPublicUrl(fileName);
       }
 
-      // 2. Dapatkan nomor urut slide terakhir untuk presentasi ini
+      // Dapatkan urutan slide
       final countResponse = await _supabase
           .from('slides')
           .select('id')
           .eq('presentation_id', widget.presentationId);
       final int orderNum = (countResponse as List).length + 1;
 
-      // 3. Simpan Slide ke Database dan ambil ID-nya
+      // Insert Slide
       final slideResponse = await _supabase
           .from('slides')
           .insert({
@@ -136,11 +146,12 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
 
       final slideId = slideResponse['id'];
 
-      // 4. Simpan Opsi Jawaban (Khusus Polling & Kuis)
+      // Insert Opsi
       if (_selectedType != 'word_cloud') {
         final List<Map<String, dynamic>> optionsData = [];
 
         for (int i = 0; i < _optionControllers.length; i++) {
+          // Khusus ranking, simpan urutan default opsi di awal
           optionsData.add({
             'slide_id': slideId,
             'text': _optionControllers[i].text.trim(),
@@ -155,10 +166,10 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
 
       if (mounted) {
         _showSnackBar('Slide berhasil ditambahkan!');
-        Navigator.pop(context); // Kembali ke halaman detail presentasi
+        Navigator.pop(context);
       }
     } catch (e) {
-      _showSnackBar('Gagal menyimpan slide.', isError: true);
+      _showSnackBar('Gagal menyimpan: ${e.toString()}', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -196,12 +207,24 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Pilihan Tipe Slide
                   DropdownButtonFormField<String>(
                     value: _selectedType,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Tipe Pertanyaan',
-                      prefixIcon: Icon(Icons.category_rounded),
+                      prefixIcon: const Icon(
+                        Icons.category_rounded,
+                        color: Color(0xFF4F46E5),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF4F46E5),
+                          width: 2,
+                        ),
+                      ),
                     ),
                     items: const [
                       DropdownMenuItem(
@@ -216,31 +239,71 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                         value: 'word_cloud',
                         child: Text('Awan Kata (Word Cloud)'),
                       ),
+                      DropdownMenuItem(
+                        value: 'likert',
+                        child: Text('Skala Likert (1-5)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'ranking',
+                        child: Text('Ranking (Urutan)'),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value != null) {
                         setState(() {
                           _selectedType = value;
+
+                          // Otomatisasi untuk tipe tertentu
+                          if (_selectedType == 'likert') {
+                            _optionControllers.clear();
+                            _optionControllers.addAll([
+                              TextEditingController(
+                                text: 'Sangat Tidak Setuju',
+                              ),
+                              TextEditingController(text: 'Tidak Setuju'),
+                              TextEditingController(text: 'Netral'),
+                              TextEditingController(text: 'Setuju'),
+                              TextEditingController(text: 'Sangat Setuju'),
+                            ]);
+                          } else if (_selectedType == 'word_cloud') {
+                            _optionControllers.clear();
+                          } else {
+                            if (_optionControllers.length < 2) {
+                              _optionControllers.clear();
+                              _optionControllers.addAll([
+                                TextEditingController(),
+                                TextEditingController(),
+                              ]);
+                            }
+                          }
                         });
                       }
                     },
                   ),
                   const SizedBox(height: 24),
 
-                  // Input Pertanyaan
                   TextField(
                     controller: _questionController,
                     maxLines: 3,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Pertanyaan',
                       hintText: 'Tulis pertanyaanmu di sini...',
                       alignLabelWithHint: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF4F46E5),
+                          width: 2,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
 
-                  // Upload Gambar Opsional
                   const Text(
                     'Gambar/Logo (Opsional)',
                     style: TextStyle(fontWeight: FontWeight.bold),
@@ -255,18 +318,24 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFFE5E7EB),
+                          color: Colors.grey.shade300,
                           width: 2,
                         ),
                       ),
                       child: _imageFile != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(14),
-                              child: Image.file(
-                                _imageFile!,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              ),
+                              child: kIsWeb
+                                  ? Image.network(
+                                      _imageFile!.path,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                    )
+                                  : Image.file(
+                                      File(_imageFile!.path),
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                    ),
                             )
                           : const Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -303,7 +372,6 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                     ),
                   const SizedBox(height: 24),
 
-                  // Area Opsi Jawaban (Sembunyikan jika Word Cloud)
                   if (_selectedType != 'word_cloud') ...[
                     const Divider(),
                     const SizedBox(height: 16),
@@ -317,16 +385,17 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                             fontSize: 16,
                           ),
                         ),
-                        TextButton.icon(
-                          onPressed: _addOption,
-                          icon: const Icon(Icons.add_rounded),
-                          label: const Text('Tambah'),
-                        ),
+                        // Tombol tambah opsi dinonaktifkan untuk Likert agar standar 5 skala
+                        if (_selectedType != 'likert')
+                          TextButton.icon(
+                            onPressed: _addOption,
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('Tambah'),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 8),
 
-                    // List Dinamis Opsi Jawaban
                     ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -336,7 +405,6 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                       itemBuilder: (context, index) {
                         return Row(
                           children: [
-                            // Radio Button untuk Kuis (Menentukan jawaban benar)
                             if (_selectedType == 'quiz')
                               Radio<int>(
                                 value: index,
@@ -348,8 +416,16 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                                   });
                                 },
                               )
+                            else if (_selectedType == 'ranking')
+                              const Padding(
+                                padding: EdgeInsets.only(right: 12.0),
+                                child: Icon(
+                                  Icons.drag_indicator_rounded,
+                                  color: Colors.grey,
+                                ),
+                              )
                             else
-                              const SizedBox(width: 12), // Spacer untuk polling
+                              const SizedBox(width: 12),
 
                             Expanded(
                               child: TextField(
@@ -360,16 +436,20 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                                     horizontal: 16,
                                     vertical: 12,
                                   ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.remove_circle_outline_rounded,
-                                color: Colors.redAccent,
+                            if (_selectedType != 'likert')
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.remove_circle_outline_rounded,
+                                  color: Colors.redAccent,
+                                ),
+                                onPressed: () => _removeOption(index),
                               ),
-                              onPressed: () => _removeOption(index),
-                            ),
                           ],
                         );
                       },
@@ -386,16 +466,38 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                           ),
                         ),
                       ),
+                    if (_selectedType == 'likert')
+                      const Padding(
+                        padding: EdgeInsets.only(top: 12.0),
+                        child: Text(
+                          '* Opsi otomatis dibuat menjadi 5 Skala. Kamu bisa mengedit teksnya jika perlu.',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 32),
                   ],
 
-                  // Tombol Simpan
                   ElevatedButton(
                     onPressed: _saveSlide,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: const Color(0xFF4F46E5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
-                    child: const Text('Simpan Slide'),
+                    child: const Text(
+                      'Simpan Slide',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 40),
                 ],
