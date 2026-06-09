@@ -18,6 +18,12 @@ class AppToast {
     _currentToast?.remove();
 
     final color = isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A);
+    final backgroundColor = isError
+        ? const Color(0xFFFFF1F2)
+        : const Color(0xFFF0FDF4);
+    final borderColor = isError
+        ? const Color(0xFFFECACA)
+        : const Color(0xFFBBF7D0);
     final icon = isError
         ? Icons.error_outline_rounded
         : Icons.check_circle_outline_rounded;
@@ -27,9 +33,9 @@ class AppToast {
         final topPadding = MediaQuery.of(context).padding.top;
 
         return Positioned(
-          top: topPadding + 16,
-          left: 20,
-          right: 20,
+          top: topPadding + 18,
+          left: 16,
+          right: 16,
           child: IgnorePointer(
             child: Material(
               color: Colors.transparent,
@@ -49,33 +55,42 @@ class AppToast {
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 520),
-                    child: DecoratedBox(
+                    child: Container(
                       decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(14),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: borderColor),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.16),
-                            blurRadius: 18,
-                            offset: const Offset(0, 10),
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 24,
+                            offset: const Offset(0, 12),
                           ),
                         ],
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
+                          horizontal: 14,
                           vertical: 12,
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(icon, color: Colors.white, size: 22),
-                            const SizedBox(width: 10),
+                            Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: backgroundColor,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(icon, color: color, size: 20),
+                            ),
+                            const SizedBox(width: 12),
                             Flexible(
                               child: Text(
                                 message,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: const Color(0xFF111827),
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   height: 1.25,
