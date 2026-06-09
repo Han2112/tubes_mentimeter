@@ -18,17 +18,14 @@ class AudienceScreen extends StatefulWidget {
 
 class _AudienceScreenState extends State<AudienceScreen> {
   final _supabase = Supabase.instance.client;
-  final PageController _pageController =
-      PageController(); // Tambahan controller navigasi
+  final PageController _pageController = PageController();
 
   bool _isLoading = true;
   List<dynamic> _slides = [];
 
   // Menyimpan data input audiens secara lokal sebelum dikirim
-  final Map<String, String> _selectedOptions =
-      {}; // Untuk Polling/Kuis: { slideId : optionId }
-  final Map<String, TextEditingController> _textControllers =
-      {}; // Untuk Word Cloud: { slideId : controller }
+  final Map<String, String> _selectedOptions = {};
+  final Map<String, TextEditingController> _textControllers = {};
   final Map<String, double> _likertValues = {};
   final Map<String, List<dynamic>> _rankingOptions = {};
 
@@ -50,9 +47,9 @@ class _AudienceScreenState extends State<AudienceScreen> {
     super.dispose();
   }
 
-  // Mengambil data slide berserta opsi jawabannya dalam satu tarikan query
   Future<void> _fetchSlidesAndOptions() async {
     setState(() => _isLoading = true);
+
     try {
       final response = await _supabase
           .from('slides')
@@ -60,14 +57,15 @@ class _AudienceScreenState extends State<AudienceScreen> {
           .eq('presentation_id', widget.presentationId)
           .order('order_num', ascending: true);
 
-      // Inisialisasi text controller untuk word cloud
       for (var slide in response) {
         if (slide['type'] == 'word_cloud' || slide['type'] == 'qna') {
           _textControllers[slide['id']] = TextEditingController();
         }
+
         if (slide['type'] == 'likert') {
           _likertValues[slide['id']] = 3;
         }
+
         if (slide['type'] == 'ranking') {
           _rankingOptions[slide['id']] = List<dynamic>.from(
             slide['options'] ?? [],
@@ -85,9 +83,8 @@ class _AudienceScreenState extends State<AudienceScreen> {
     }
   }
 
-  // Mengirim jawaban ke database
   Future<void> _submitResponse(String slideId, String type) async {
-    Map<String, dynamic> responseData = {
+    final Map<String, dynamic> responseData = {
       'slide_id': slideId,
       'user_id':
           _supabase.auth.currentUser?.id ??
@@ -96,6 +93,7 @@ class _AudienceScreenState extends State<AudienceScreen> {
 
     if (type == 'polling' || type == 'quiz') {
       final optionId = _selectedOptions[slideId];
+
       if (optionId == null) {
         _showSnackBar(
           'Silakan pilih salah satu opsi terlebih dahulu.',
@@ -103,14 +101,18 @@ class _AudienceScreenState extends State<AudienceScreen> {
         );
         return;
       }
+
       responseData['option_id'] = optionId;
     } else if (type == 'word_cloud' || type == 'qna') {
       final text = _textControllers[slideId]?.text.trim();
+
       if (text == null || text.isEmpty) {
         _showSnackBar('Input tidak boleh kosong.', isError: true);
         return;
       }
+
       responseData['text_response'] = text;
+
       if (type == 'qna') {
         responseData['user_id'] =
             'anonymous-${DateTime.now().millisecondsSinceEpoch}';
@@ -120,21 +122,26 @@ class _AudienceScreenState extends State<AudienceScreen> {
           (_slides.firstWhere((s) => s['id'] == slideId)['options']
               as List<dynamic>? ??
           []);
-      final index = ((_likertValues[slideId] ?? 3).round() - 1).clamp(
-        0,
-        options.length - 1,
-      );
+
       if (options.isEmpty) {
         _showSnackBar('Opsi skala belum tersedia.', isError: true);
         return;
       }
+
+      final index = ((_likertValues[slideId] ?? 3).round() - 1).clamp(
+        0,
+        options.length - 1,
+      );
+
       responseData['option_id'] = options[index]['id'];
     } else if (type == 'ranking') {
       final ranked = _rankingOptions[slideId] ?? [];
+
       if (ranked.isEmpty) {
         _showSnackBar('Opsi ranking belum tersedia.', isError: true);
         return;
       }
+
       responseData['text_response'] = ranked
           .map((option) => option['id'].toString())
           .join(',');
@@ -144,8 +151,9 @@ class _AudienceScreenState extends State<AudienceScreen> {
       await _supabase.from('responses').insert(responseData);
 
       setState(() {
-        _submittedSlideIds.add(slideId); // Tandai slide sudah dijawab
+        _submittedSlideIds.add(slideId);
       });
+
       _showSnackBar('Jawaban berhasil dikirim!');
     } catch (e) {
       _showSnackBar('Gagal mengirim jawaban.', isError: true);
@@ -155,6 +163,25 @@ class _AudienceScreenState extends State<AudienceScreen> {
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
     AppToast.show(context, message, isError: isError);
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'polling':
+        return '📊 Polling';
+      case 'quiz':
+        return '🧠 Kuis';
+      case 'word_cloud':
+        return '☁️ Word Cloud';
+      case 'likert':
+        return '📏 Likert';
+      case 'ranking':
+        return '🏆 Ranking';
+      case 'qna':
+        return '💬 Q&A';
+      default:
+        return type;
+    }
   }
 
   @override
@@ -175,8 +202,7 @@ class _AudienceScreenState extends State<AudienceScreen> {
           : _slides.isEmpty
           ? const Center(child: Text('Belum ada slide di presentasi ini.'))
           : PageView.builder(
-              controller:
-                  _pageController, // Menghubungkan controller ke PageView
+              controller: _pageController,
               physics: const BouncingScrollPhysics(),
               itemCount: _slides.length,
               itemBuilder: (context, index) {
@@ -204,22 +230,61 @@ class _AudienceScreenState extends State<AudienceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Indikator Halaman
-          Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4F46E5).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Text(
-                'Slide $currentNum dari $totalSlides',
-                style: const TextStyle(
-                  color: Color(0xFF4F46E5),
-                  fontWeight: FontWeight.bold,
+          // Indikator Halaman + Badge Tipe Pertanyaan
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4F46E5).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(
+                    color: const Color(0xFF4F46E5).withOpacity(0.2),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.layers_rounded,
+                      size: 14,
+                      color: Color(0xFF4F46E5),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Slide $currentNum / $totalSlides',
+                      style: const TextStyle(
+                        color: Color(0xFF4F46E5),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: Text(
+                  _typeLabel(type),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
 
@@ -286,54 +351,90 @@ class _AudienceScreenState extends State<AudienceScreen> {
           const SizedBox(height: 32),
 
           // Tombol Submit
-          ElevatedButton(
-            onPressed: isSubmitted
-                ? null
-                : () => _submitResponse(slideId, type),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              backgroundColor: isSubmitted
-                  ? Colors.green.shade600
-                  : const Color(0xFF4F46E5),
-            ),
-            child: Text(
-              isSubmitted ? 'Terkirim \u2713' : 'Kirim Jawaban',
-              style: const TextStyle(fontSize: 16),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            child: ElevatedButton(
+              onPressed: isSubmitted
+                  ? null
+                  : () => _submitResponse(slideId, type),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: isSubmitted
+                    ? Colors.green.shade600
+                    : const Color(0xFF4F46E5),
+                disabledBackgroundColor: Colors.green.shade600,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: isSubmitted ? 0 : 2,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    isSubmitted
+                        ? Icons.check_circle_rounded
+                        : Icons.send_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isSubmitted ? 'Jawaban Terkirim ✓' : 'Kirim Jawaban',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 24),
 
-          // Tombol Navigasi Next & Prev
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton.icon(
-                onPressed: currentNum > 1
-                    ? () => _pageController.previousPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      )
-                    : null,
-                icon: const Icon(Icons.chevron_left_rounded),
-                label: const Text('Sebelumnya'),
-              ),
-              TextButton(
-                onPressed: currentNum < totalSlides
-                    ? () => _pageController.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      )
-                    : null,
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Selanjutnya'),
-                    Icon(Icons.chevron_right_rounded),
-                  ],
+          // Tombol Navigasi Next / Finish
+          if (currentNum < totalSlides)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _pageController.nextPage(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOut,
+                ),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: const Text('Pertanyaan Berikutnya'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: Color(0xFF4F46E5)),
+                  foregroundColor: const Color(0xFF4F46E5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
-            ],
-          ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const _FinishScreen()),
+                  );
+                },
+                icon: const Icon(Icons.check_circle_rounded),
+                label: const Text('Selesai & Lihat Hasil'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: Colors.green.shade600,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -439,6 +540,7 @@ class _AudienceScreenState extends State<AudienceScreen> {
     bool isSubmitted,
   ) {
     final value = _likertValues[slideId] ?? 3;
+
     if (options.isEmpty) {
       return const Center(
         child: Text(
@@ -447,6 +549,7 @@ class _AudienceScreenState extends State<AudienceScreen> {
         ),
       );
     }
+
     final selectedIndex = (value.round() - 1).clamp(0, options.length - 1);
     final selectedText = options[selectedIndex]['text'];
 
@@ -507,6 +610,7 @@ class _AudienceScreenState extends State<AudienceScreen> {
             },
       itemBuilder: (context, index) {
         final option = ranking[index];
+
         return Container(
           key: ValueKey(option['id']),
           margin: const EdgeInsets.only(bottom: 12),
@@ -540,6 +644,88 @@ class _AudienceScreenState extends State<AudienceScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _FinishScreen extends StatelessWidget {
+  const _FinishScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(40.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF4F46E5).withOpacity(0.3),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.celebration_rounded,
+                    size: 72,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                const Text(
+                  'Semua Selesai! 🎉',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Terima kasih sudah berpartisipasi.\nJawaban kamu sudah berhasil dikirim.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () =>
+                        Navigator.popUntil(context, (route) => route.isFirst),
+                    icon: const Icon(Icons.home_rounded),
+                    label: const Text('Kembali ke Beranda'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: const Color(0xFF4F46E5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
