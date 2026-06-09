@@ -506,29 +506,50 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
 
   Widget _buildSlideView(Map<String, dynamic> slide, int curr, int total) {
     final res = _responses.where((r) => r['slide_id'] == slide['id']).toList();
-    Color timerColor = _timeLeft <= 10
-        ? Colors.redAccent
-        : const Color(0xFF4F46E5);
     final String type = slide['type'];
 
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.alarm_rounded, color: timerColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                _isTimeUp ? 'WAKTU HABIS!' : 'Sisa Waktu: $_timeLeft detik',
-                style: TextStyle(
-                  color: timerColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 500),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: _isTimeUp
+                  ? Colors.red.withOpacity(0.08)
+                  : _timeLeft <= 10
+                  ? Colors.orange.withOpacity(0.08)
+                  : const Color(0xFFEEEDFE),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _isTimeUp ? Icons.timer_off_rounded : Icons.timer_rounded,
+                  size: 18,
+                  color: _isTimeUp
+                      ? Colors.redAccent
+                      : _timeLeft <= 10
+                      ? Colors.orange
+                      : const Color(0xFF4F46E5),
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  _isTimeUp ? 'Waktu habis' : '$_timeLeft detik',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: _isTimeUp
+                        ? Colors.redAccent
+                        : _timeLeft <= 10
+                        ? Colors.orange
+                        : const Color(0xFF4F46E5),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -610,24 +631,54 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
       itemCount: opts.length,
       itemBuilder: (context, i) {
         final count = res.where((r) => r['option_id'] == opts[i]['id']).length;
-        final per = total == 0 ? 0.0 : count / total;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              opts[i]['text'],
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: per,
-              minHeight: 12,
-              borderRadius: BorderRadius.circular(10),
-              color: const Color(0xFF4F46E5),
-              backgroundColor: Colors.grey.shade100,
-            ),
-            const SizedBox(height: 12),
-          ],
+        final pct = total == 0 ? 0.0 : count / total;
+        final pctLabel = total == 0 ? '0%' : '${(pct * 100).round()}%';
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      opts[i]['text'],
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$count - $pctLabel',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Color(0xFF4F46E5),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: pct,
+                  minHeight: 10,
+                  backgroundColor: const Color(0xFFF3F4F6),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    i % 2 == 0
+                        ? const Color(0xFF4F46E5)
+                        : const Color(0xFF818CF8),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );

@@ -22,6 +22,7 @@ class _AudienceScreenState extends State<AudienceScreen> {
 
   bool _isLoading = true;
   List<dynamic> _slides = [];
+  int _currentSlideIndex = 0;
 
   // Menyimpan data input audiens secara lokal sebelum dikirim
   final Map<String, String> _selectedOptions = {};
@@ -197,22 +198,48 @@ class _AudienceScreenState extends State<AudienceScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _slides.isEmpty
-          ? const Center(child: Text('Belum ada slide di presentasi ini.'))
-          : PageView.builder(
-              controller: _pageController,
-              physics: const BouncingScrollPhysics(),
-              itemCount: _slides.length,
-              itemBuilder: (context, index) {
-                return _buildSlideCard(
-                  _slides[index],
-                  index + 1,
-                  _slides.length,
+      body: Column(
+        children: [
+          if (!_isLoading && _slides.isNotEmpty)
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final progress = (_currentSlideIndex + 1) / _slides.length;
+                return Stack(
+                  children: [
+                    Container(height: 3, color: const Color(0xFFEAEAF0)),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      height: 3,
+                      width: constraints.maxWidth * progress,
+                      color: const Color(0xFF4F46E5),
+                    ),
+                  ],
                 );
               },
             ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _slides.isEmpty
+                ? const Center(
+                    child: Text('Belum ada slide di presentasi ini.'),
+                  )
+                : PageView.builder(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _slides.length,
+                    onPageChanged: (index) {
+                      setState(() => _currentSlideIndex = index);
+                    },
+                    itemBuilder: (context, index) => _buildSlideCard(
+                      _slides[index],
+                      index + 1,
+                      _slides.length,
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 

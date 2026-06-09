@@ -244,24 +244,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // Pengaturan Fingerprint
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFEAEAF0), width: 1),
               ),
-              child: SwitchListTile(
-                title: const Text(
-                  'Login dengan Fingerprint',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text('Gunakan biometrik untuk login cepat'),
-                activeColor: const Color(0xFF4F46E5),
-                value: _useFingerprint,
-                onChanged: (bool value) {
-                  setState(() {
-                    _useFingerprint = value;
-                  });
-                },
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 4,
+                    ),
+                    title: const Text(
+                      'Login dengan Fingerprint',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Masuk lebih cepat pakai biometrik',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                    ),
+                    activeColor: const Color(0xFF4F46E5),
+                    value: _useFingerprint,
+                    onChanged: (v) => setState(() => _useFingerprint = v),
+                  ),
+                  const Divider(height: 1, indent: 18, endIndent: 18),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 4,
+                    ),
+                    leading: const Icon(
+                      Icons.lock_reset_rounded,
+                      color: Color(0xFF9CA3AF),
+                      size: 20,
+                    ),
+                    title: const Text(
+                      'Ubah Password',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFFD1D5DB),
+                      size: 20,
+                    ),
+                    onTap: () {},
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 32),

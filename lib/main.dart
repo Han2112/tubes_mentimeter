@@ -30,66 +30,92 @@ class MentimeterApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4F46E5), // Warna Indigo yang modern
-          surface: const Color(0xFFF8FAFC), // Background cerah dan bersih
+          seedColor: const Color(0xFF4F46E5),
+          surface: const Color(0xFFF5F5F8),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        scaffoldBackgroundColor: const Color(0xFFF5F5F8),
         useMaterial3: true,
-        // Menggunakan font modern
         textTheme: GoogleFonts.plusJakartaSansTextTheme(
           Theme.of(context).textTheme,
         ),
-        // PERBAIKAN: Menggunakan CardThemeData sesuai permintaan compiler
         cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFE5E7EB)),
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0xFFEAEAF0), width: 1),
           ),
           color: Colors.white,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF8FAFC),
+          backgroundColor: Color(0xFFF5F5F8),
           foregroundColor: Color(0xFF111827),
           elevation: 0,
+          scrolledUnderElevation: 0,
           centerTitle: true,
+          titleTextStyle: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF111827),
+          ),
         ),
-        // Desain tombol membulat (pill-shaped)
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             elevation: 0,
             backgroundColor: const Color(0xFF4F46E5),
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+            disabledBackgroundColor: const Color(0xFFD1D5DB),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
             textStyle: const TextStyle(
               fontWeight: FontWeight.w700,
-              fontSize: 16,
+              fontSize: 15,
             ),
           ),
         ),
-        // Desain input text yang soft dan membulat
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            foregroundColor: const Color(0xFF4F46E5),
+            side: const BorderSide(color: Color(0xFFE0E0EB), width: 1.5),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+          ),
+        ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFEAEAF0), width: 1),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFEAEAF0), width: 1),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
           ),
+          prefixIconColor: const Color(0xFF9CA3AF),
+          labelStyle: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+          hintStyle: const TextStyle(color: Color(0xFFD1D5DB), fontSize: 15),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
+            horizontal: 18,
             vertical: 16,
           ),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: Color(0xFFEAEAF0),
+          thickness: 1,
+          space: 1,
         ),
       ),
       // Mengarahkan ke LoginScreen

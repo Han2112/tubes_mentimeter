@@ -129,26 +129,41 @@ class _JoinScreenState extends State<JoinScreen> {
                 const SizedBox(height: 48),
 
                 // Input Kode Join
-                TextField(
-                  controller: _codeController,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  maxLength: 6,
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 8,
-                    color: Color(0xFF1F2937),
-                  ),
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: InputDecoration(
-                    counterText: '', // Menyembunyikan counter 0/6
-                    hintText: '000000',
-                    hintStyle: TextStyle(
-                      color: Colors.grey.shade300,
-                      letterSpacing: 8,
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFFEAEAF0),
+                      width: 1.5,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 20),
+                  ),
+                  child: TextField(
+                    controller: _codeController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    maxLength: 6,
+                    style: const TextStyle(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 10,
+                      color: Color(0xFF111827),
+                    ),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      counterText: '',
+                      hintText: '. . . . . .',
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade300,
+                        letterSpacing: 8,
+                        fontSize: 20,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      fillColor: Colors.transparent,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 22),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),

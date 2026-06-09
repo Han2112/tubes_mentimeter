@@ -282,23 +282,85 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final slide = _slides[index];
+        const typeIcons = {
+          'polling': Icons.poll_outlined,
+          'quiz': Icons.quiz_outlined,
+          'word_cloud': Icons.cloud_outlined,
+          'likert': Icons.linear_scale_rounded,
+          'ranking': Icons.format_list_numbered_rounded,
+          'qna': Icons.forum_outlined,
+        };
+        final icon = typeIcons[slide['type']] ?? Icons.help_outline;
+
         return Card(
           child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: const Color(0xFF4F46E5).withOpacity(0.1),
-              child: Text('${index + 1}'),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 8,
+            ),
+            leading: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEEDFE),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: const Color(0xFF4F46E5), size: 20),
             ),
             title: Text(
               slide['question'] ?? 'Tanpa Pertanyaan',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: Color(0xFF111827),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            subtitle: Text(
-              'Tipe: ${_typeLabel(slide['type'].toString())} | Timer: ${slide['timer_seconds'] ?? 30} detik',
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      _typeLabel(slide['type'].toString()),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF6B7280),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.timer_outlined,
+                    size: 12,
+                    color: Color(0xFFD1D5DB),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${slide['timer_seconds'] ?? 30}s',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFFD1D5DB),
+                    ),
+                  ),
+                ],
+              ),
             ),
             trailing: IconButton(
               icon: const Icon(
                 Icons.delete_outline_rounded,
-                color: Colors.redAccent,
+                color: Color(0xFFE5E7EB),
+                size: 20,
               ),
               onPressed: () => _confirmDelete(slide['id']),
             ),

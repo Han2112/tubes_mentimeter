@@ -137,24 +137,42 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
-                const SizedBox(height: 32),
-                Text(
+                // Ganti container icon di paling atas dengan:
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4F46E5),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Icon(
+                        Icons.bubble_chart_rounded,
+                        size: 36,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                const Text(
                   'Selamat Datang',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1F2937),
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Masuk untuk mulai presentasi interaktifmu.',
+                const SizedBox(height: 6),
+                const Text(
+                  'Masuk ke akun Mentimeter kamu',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF6B7280),
-                  ),
+                  style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 36),
 
                 TextField(
                   controller: _emailController,
@@ -221,42 +239,60 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
 
+                // Ganti Row divider dengan:
                 Row(
                   children: [
-                    const Expanded(child: Divider()),
+                    Expanded(child: Divider(color: Color(0xFFEAEAF0))),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: EdgeInsets.symmetric(horizontal: 14),
                       child: Text(
-                        'ATAU',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
+                        'atau',
+                        style: TextStyle(
+                          color: Color(0xFFD1D5DB),
+                          fontSize: 13,
                         ),
                       ),
                     ),
-                    const Expanded(child: Divider()),
+                    Expanded(child: Divider(color: Color(0xFFEAEAF0))),
                   ],
                 ),
                 const SizedBox(height: 24),
 
-                OutlinedButton.icon(
-                  onPressed: _loginWithFingerprint,
-                  icon: const Icon(Icons.fingerprint_rounded, size: 28),
-                  label: const Text('Login dengan Fingerprint'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    foregroundColor: const Color(0xFF1F2937),
-                    side: const BorderSide(color: Color(0xFFE5E7EB), width: 2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(100),
+                // Ganti OutlinedButton fingerprint dengan:
+                InkWell(
+                  onTap: _loginWithFingerprint,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFFEAEAF0),
+                        width: 1.5,
+                      ),
                     ),
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.fingerprint_rounded,
+                          size: 22,
+                          color: Color(0xFF4F46E5),
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          'Lanjutkan dengan Fingerprint',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: Color(0xFF374151),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

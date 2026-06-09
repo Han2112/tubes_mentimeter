@@ -241,93 +241,89 @@ class _PresentationsScreenState extends State<PresentationsScreen> {
         itemCount: _presentations.length,
         separatorBuilder: (context, index) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
-          final presentation = _presentations[index];
-          // Memotong string tanggal agar lebih rapi (YYYY-MM-DD)
-          final dateString = presentation['created_at'].toString().split(
-            'T',
-          )[0];
+          final p = _presentations[index];
+          final dateString = p['created_at'].toString().split('T')[0];
+          // Warna aksen bergantian biar tidak monoton
+          final colors = [
+            const Color(0xFF4F46E5),
+            const Color(0xFF0EA5E9),
+            const Color(0xFF10B981),
+            const Color(0xFFF59E0B),
+          ];
+          final accent = colors[index % colors.length];
 
           return Card(
             child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: () {
-                // Navigasi ke halaman detail presentasi yang sebenarnya
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PresentationDetailScreen(
-                      presentationId: presentation['id'],
-                      title: presentation['title'],
-                      joinCode: presentation['join_code'],
-                    ),
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PresentationDetailScreen(
+                    presentationId: p['id'],
+                    title: p['title'],
+                    joinCode: p['join_code'],
                   ),
-                );
-              },
+                ),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(18),
                 child: Row(
                   children: [
-                    // Ikon File / Presentasi
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
+                        color: accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.bar_chart_rounded,
-                        color: Color(0xFF4F46E5),
+                        color: accent,
+                        size: 24,
                       ),
                     ),
-                    const SizedBox(width: 16),
-
-                    // Informasi Presentasi
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            presentation['title'],
+                            p['title'],
                             style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Color(0xFF1F2937),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: Color(0xFF111827),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 5),
                           Row(
                             children: [
-                              const Icon(
-                                Icons.pin_rounded,
-                                size: 14,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Kode: ${presentation['join_code']}',
-                                style: const TextStyle(
-                                  color: Color(0xFF4F46E5),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: accent.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  p['join_code'],
+                                  style: TextStyle(
+                                    color: accent,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                    letterSpacing: 1.5,
+                                  ),
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_today_rounded,
-                                size: 12,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 8),
                               Text(
-                                'Dibuat: $dateString',
+                                dateString,
                                 style: const TextStyle(
-                                  color: Colors.grey,
+                                  color: Color(0xFFD1D5DB),
                                   fontSize: 12,
                                 ),
                               ),
@@ -336,17 +332,13 @@ class _PresentationsScreenState extends State<PresentationsScreen> {
                         ],
                       ),
                     ),
-
-                    // Tombol Hapus
                     IconButton(
                       icon: const Icon(
                         Icons.delete_outline_rounded,
-                        color: Colors.redAccent,
+                        color: Color(0xFFE5E7EB),
+                        size: 20,
                       ),
-                      onPressed: () => _confirmDelete(
-                        presentation['id'],
-                        presentation['title'],
-                      ),
+                      onPressed: () => _confirmDelete(p['id'], p['title']),
                     ),
                   ],
                 ),

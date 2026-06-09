@@ -193,6 +193,19 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
   bool get _needsOptions =>
       _selectedType != 'word_cloud' && _selectedType != 'qna';
 
+  Widget _sectionLabel(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      text,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF6B7280),
+        letterSpacing: 0.3,
+      ),
+    ),
+  );
+
   void _resetOptionsForType(String type) {
     for (final controller in _optionControllers) {
       controller.dispose();
@@ -243,6 +256,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  _sectionLabel('TIPE PERTANYAAN'),
                   DropdownButtonFormField<String>(
                     value: _selectedType,
                     decoration: InputDecoration(
@@ -295,6 +309,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
+                  _sectionLabel('TIMER'),
                   TextField(
                     controller: _timerController,
                     keyboardType: TextInputType.number,
@@ -307,6 +322,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  _sectionLabel('PERTANYAAN'),
                   TextField(
                     controller: _questionController,
                     maxLines: 3,
@@ -329,11 +345,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  const Text(
-                    'Gambar/Logo (Opsional)',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
+                  _sectionLabel('GAMBAR/LOGO (OPSIONAL)'),
                   InkWell(
                     onTap: _pickImage,
                     borderRadius: BorderRadius.circular(16),
@@ -400,6 +412,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                   if (_needsOptions) ...[
                     const Divider(),
                     const SizedBox(height: 16),
+                    _sectionLabel('OPSI JAWABAN'),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -506,25 +519,18 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                     const SizedBox(height: 32),
                   ],
 
-                  ElevatedButton(
-                    onPressed: _saveSlide,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: const Color(0xFF4F46E5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 24),
+                  SafeArea(
+                    top: false,
+                    child: ElevatedButton(
+                      onPressed: _saveSlide,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 54),
                       ),
-                    ),
-                    child: const Text(
-                      'Simpan Slide',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                      child: const Text('Simpan Slide'),
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
