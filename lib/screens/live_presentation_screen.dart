@@ -2,8 +2,8 @@ import 'dart:typed_data';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/app_toast.dart';
 
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:excel/excel.dart' hide Border;
@@ -58,13 +58,22 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
     await _fetchResponses();
     _setupRealtime();
     setState(() => _isLoading = false);
-    _startTimer();
+    if (_slides.isNotEmpty) {
+      _startTimer(_slides.first);
+    }
   }
 
-  void _startTimer() {
+  int _timerSecondsFor(Map<String, dynamic> slide) {
+    final value = slide['timer_seconds'];
+    if (value is int && value > 0) return value;
+    if (value is String) return int.tryParse(value) ?? 30;
+    return 30;
+  }
+
+  void _startTimer(Map<String, dynamic> slide) {
     _countdownTimer?.cancel();
     setState(() {
-      _timeLeft = 30;
+      _timeLeft = _timerSecondsFor(slide);
       _isTimeUp = false;
     });
 
@@ -276,12 +285,9 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
             level: 0,
             child: pw.Text('Laporan Mentimeter - ${widget.title}'),
           ),
-          ..._slides.map(
-            (s) => pw.Padding(
-              padding: const pw.EdgeInsets.symmetric(vertical: 10),
-              child: pw.Text('${s['question']}'),
-            ),
-          ),
+          pw.Text('Join Code: ${widget.joinCode}'),
+          pw.SizedBox(height: 16),
+          ..._slides.map((slide) => _buildPdfSlideSummary(slide)),
         ],
       ),
     );
@@ -291,25 +297,118 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
   Future<void> _exportToExcel() async {
     var excel = Excel.createExcel();
     Sheet sheet = excel['Hasil'];
-    sheet.appendRow([TextCellValue('Pertanyaan'), TextCellValue('Tipe')]);
-    for (var s in _slides) {
-      sheet.appendRow([TextCellValue(s['question']), TextCellValue(s['type'])]);
+    sheet.appendRow([
+      TextCellValue('No'),
+      TextCellValue('Pertanyaan'),
+      TextCellValue('Tipe'),
+      TextCellValue('Jawaban/Item'),
+      TextCellValue('Jumlah/Poin'),
+    ]);
+    for (var i = 0; i < _slides.length; i++) {
+      final slide = _slides[i];
+      final rows = _reportRowsFor(slide);
+      if (rows.isEmpty) {
+        sheet.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(slide['question'] ?? ''),
+          TextCellValue(_typeLabel(slide['type'] ?? '')),
+          TextCellValue('-'),
+          IntCellValue(0),
+        ]);
+      } else {
+        for (final row in rows) {
+          sheet.appendRow([
+            IntCellValue(i + 1),
+            TextCellValue(slide['question'] ?? ''),
+            TextCellValue(_typeLabel(slide['type'] ?? '')),
+            TextCellValue(row.label),
+            IntCellValue(row.value),
+          ]);
+        }
+      }
     }
     var bytes = excel.save();
-    if (bytes != null)
+    if (bytes != null) {
       await Share.shareXFiles([
         XFile.fromData(Uint8List.fromList(bytes), name: 'laporan.xlsx'),
       ]);
+    }
+  }
+
+  pw.Widget _buildPdfSlideSummary(Map<String, dynamic> slide) {
+    final rows = _reportRowsFor(slide);
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 14),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            '${slide['order_num'] ?? '-'} . ${slide['question'] ?? ''}',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+          ),
+          pw.Text('Tipe: ${_typeLabel(slide['type'] ?? '')}'),
+          pw.Text('Timer: ${_timerSecondsFor(slide)} detik'),
+          pw.SizedBox(height: 6),
+          if (rows.isEmpty)
+            pw.Text('Belum ada respons.')
+          else
+            ...rows.map((row) => pw.Text('- ${row.label}: ${row.value}')),
+        ],
+      ),
+    );
+  }
+
+  List<_ReportRow> _reportRowsFor(Map<String, dynamic> slide) {
+    final type = slide['type'];
+    final responses = _responses
+        .where((r) => r['slide_id'] == slide['id'])
+        .toList();
+    final options = slide['options'] ?? [];
+
+    if (type == 'word_cloud' || type == 'qna') {
+      return responses
+          .map((r) => _ReportRow((r['text_response'] ?? '').toString(), 1))
+          .where((row) => row.label.isNotEmpty)
+          .toList();
+    }
+
+    if (type == 'ranking') {
+      return _rankingScores(
+        options,
+        responses,
+      ).map((row) => _ReportRow(row['text'], row['score'])).toList();
+    }
+
+    return options.map<_ReportRow>((option) {
+      final count = responses
+          .where((response) => response['option_id'] == option['id'])
+          .length;
+      return _ReportRow(option['text'] ?? '-', count);
+    }).toList();
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'polling':
+        return 'Polling';
+      case 'quiz':
+        return 'Kuis';
+      case 'word_cloud':
+        return 'Word Cloud';
+      case 'likert':
+        return 'Skala Likert';
+      case 'ranking':
+        return 'Ranking';
+      case 'qna':
+        return 'Q&A Anonim';
+      default:
+        return type.toUpperCase();
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : Colors.green,
-      ),
-    );
+    AppToast.show(context, message, isError: isError);
   }
 
   @override
@@ -391,7 +490,7 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
                     itemCount: _slides.length,
                     physics: const NeverScrollableScrollPhysics(),
                     onPageChanged: (index) {
-                      _startTimer();
+                      _startTimer(_slides[index]);
                     },
                     itemBuilder: (context, index) => _buildSlideView(
                       _slides[index],
@@ -465,6 +564,8 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
                   ? _buildLikertResult(slide['options'] ?? [], res)
                   : type == 'ranking'
                   ? _buildRankingResult(slide['options'] ?? [], res)
+                  : type == 'qna'
+                  ? _buildQnaResult(res)
                   : _buildBarChart(slide['options'] ?? [], res, res.length),
             ),
           ),
@@ -548,21 +649,69 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
     );
   }
 
+  Widget _buildQnaResult(List res) {
+    final questions = res
+        .map((r) => (r['text_response'] ?? '').toString().trim())
+        .where((text) => text.isNotEmpty)
+        .toList();
+
+    if (questions.isEmpty) {
+      return const Center(
+        child: Text(
+          'Belum ada pertanyaan anonim.',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      itemCount: questions.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      itemBuilder: (context, index) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.forum_outlined, color: Color(0xFF4F46E5)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                questions[index],
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // --- TAMPILAN HASIL SKALA LIKERT ---
   Widget _buildLikertResult(List options, List res) {
-    if (res.isEmpty)
+    if (res.isEmpty) {
       return const Center(
         child: Text(
           'Belum ada penilaian.',
           style: TextStyle(color: Colors.grey),
         ),
       );
+    }
 
     double totalScore = 0;
     for (var r in res) {
       int index = options.indexWhere((o) => o['id'] == r['option_id']);
-      if (index != -1)
+      if (index != -1) {
         totalScore += (index + 1); // Indeks 0 nilainya 1, indeks 4 nilainya 5
+      }
     }
     double average = totalScore / res.length;
 
@@ -613,39 +762,16 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
 
   // --- TAMPILAN HASIL RANKING ---
   Widget _buildRankingResult(List options, List res) {
-    if (res.isEmpty)
+    if (res.isEmpty) {
       return const Center(
         child: Text(
           'Belum ada urutan yang masuk.',
           style: TextStyle(color: Colors.grey),
         ),
       );
-
-    // Siapkan wadah poin untuk setiap opsi
-    Map<String, int> scores = {for (var o in options) o['id'].toString(): 0};
-    int maxPoints = options.length;
-
-    // Hitung poin: Peringkat 1 dapat poin terbesar (maxPoints), dst.
-    for (var r in res) {
-      String textRes = r['text_response'] ?? '';
-      if (textRes.isNotEmpty) {
-        List<String> rankedIds = textRes.split(',');
-        for (int i = 0; i < rankedIds.length; i++) {
-          String id = rankedIds[i];
-          if (scores.containsKey(id)) {
-            scores[id] = scores[id]! + (maxPoints - i);
-          }
-        }
-      }
     }
 
-    // Ubah ke format list agar bisa diurutkan
-    List<Map<String, dynamic>> rankedOptions = options.map((o) {
-      return {'text': o['text'], 'score': scores[o['id'].toString()] ?? 0};
-    }).toList();
-
-    // Urutkan berdasarkan poin tertinggi
-    rankedOptions.sort((a, b) => b['score'].compareTo(a['score']));
+    final rankedOptions = _rankingScores(options, res);
 
     return ListView.builder(
       itemCount: rankedOptions.length,
@@ -685,4 +811,37 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
       },
     );
   }
+
+  List<Map<String, dynamic>> _rankingScores(List options, List res) {
+    Map<String, int> scores = {for (var o in options) o['id'].toString(): 0};
+    int maxPoints = options.length;
+
+    // Hitung poin: Peringkat 1 dapat poin terbesar (maxPoints), dst.
+    for (var r in res) {
+      String textRes = r['text_response'] ?? '';
+      if (textRes.isNotEmpty) {
+        List<String> rankedIds = textRes.split(',');
+        for (int i = 0; i < rankedIds.length; i++) {
+          String id = rankedIds[i];
+          if (scores.containsKey(id)) {
+            scores[id] = scores[id]! + (maxPoints - i);
+          }
+        }
+      }
+    }
+
+    List<Map<String, dynamic>> rankedOptions = options.map((o) {
+      return {'text': o['text'], 'score': scores[o['id'].toString()] ?? 0};
+    }).toList();
+
+    rankedOptions.sort((a, b) => b['score'].compareTo(a['score']));
+    return rankedOptions;
+  }
+}
+
+class _ReportRow {
+  final String label;
+  final int value;
+
+  const _ReportRow(this.label, this.value);
 }

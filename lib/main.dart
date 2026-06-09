@@ -31,8 +31,9 @@ class MentimeterApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF4F46E5), // Warna Indigo yang modern
-          surface: const Color(0xFFF9FAFB), // Background cerah dan bersih
+          surface: const Color(0xFFF8FAFC), // Background cerah dan bersih
         ),
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         useMaterial3: true,
         // Menggunakan font modern
         textTheme: GoogleFonts.plusJakartaSansTextTheme(
@@ -42,9 +43,16 @@ class MentimeterApp extends StatelessWidget {
         cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFE5E7EB)),
           ),
           color: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFF8FAFC),
+          foregroundColor: Color(0xFF111827),
+          elevation: 0,
+          centerTitle: true,
         ),
         // Desain tombol membulat (pill-shaped)
         elevatedButtonTheme: ElevatedButtonThemeData(
@@ -54,7 +62,7 @@ class MentimeterApp extends StatelessWidget {
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(100),
+              borderRadius: BorderRadius.circular(14),
             ),
             textStyle: const TextStyle(
               fontWeight: FontWeight.w700,

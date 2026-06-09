@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/app_toast.dart';
 
 class AudienceScreen extends StatefulWidget {
   final String presentationId;
@@ -28,6 +29,8 @@ class _AudienceScreenState extends State<AudienceScreen> {
       {}; // Untuk Polling/Kuis: { slideId : optionId }
   final Map<String, TextEditingController> _textControllers =
       {}; // Untuk Word Cloud: { slideId : controller }
+  final Map<String, double> _likertValues = {};
+  final Map<String, List<dynamic>> _rankingOptions = {};
 
   // Menyimpan ID slide yang sudah dijawab agar tidak bisa spam
   final Set<String> _submittedSlideIds = {};
@@ -59,8 +62,16 @@ class _AudienceScreenState extends State<AudienceScreen> {
 
       // Inisialisasi text controller untuk word cloud
       for (var slide in response) {
-        if (slide['type'] == 'word_cloud') {
+        if (slide['type'] == 'word_cloud' || slide['type'] == 'qna') {
           _textControllers[slide['id']] = TextEditingController();
+        }
+        if (slide['type'] == 'likert') {
+          _likertValues[slide['id']] = 3;
+        }
+        if (slide['type'] == 'ranking') {
+          _rankingOptions[slide['id']] = List<dynamic>.from(
+            slide['options'] ?? [],
+          );
         }
       }
 
@@ -76,12 +87,11 @@ class _AudienceScreenState extends State<AudienceScreen> {
 
   // Mengirim jawaban ke database
   Future<void> _submitResponse(String slideId, String type) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return;
-
     Map<String, dynamic> responseData = {
       'slide_id': slideId,
-      'user_id': userId,
+      'user_id':
+          _supabase.auth.currentUser?.id ??
+          'anon-${DateTime.now().millisecondsSinceEpoch}',
     };
 
     if (type == 'polling' || type == 'quiz') {
@@ -94,13 +104,40 @@ class _AudienceScreenState extends State<AudienceScreen> {
         return;
       }
       responseData['option_id'] = optionId;
-    } else if (type == 'word_cloud') {
+    } else if (type == 'word_cloud' || type == 'qna') {
       final text = _textControllers[slideId]?.text.trim();
       if (text == null || text.isEmpty) {
-        _showSnackBar('Jawaban tidak boleh kosong.', isError: true);
+        _showSnackBar('Input tidak boleh kosong.', isError: true);
         return;
       }
       responseData['text_response'] = text;
+      if (type == 'qna') {
+        responseData['user_id'] =
+            'anonymous-${DateTime.now().millisecondsSinceEpoch}';
+      }
+    } else if (type == 'likert') {
+      final options =
+          (_slides.firstWhere((s) => s['id'] == slideId)['options']
+              as List<dynamic>? ??
+          []);
+      final index = ((_likertValues[slideId] ?? 3).round() - 1).clamp(
+        0,
+        options.length - 1,
+      );
+      if (options.isEmpty) {
+        _showSnackBar('Opsi skala belum tersedia.', isError: true);
+        return;
+      }
+      responseData['option_id'] = options[index]['id'];
+    } else if (type == 'ranking') {
+      final ranked = _rankingOptions[slideId] ?? [];
+      if (ranked.isEmpty) {
+        _showSnackBar('Opsi ranking belum tersedia.', isError: true);
+        return;
+      }
+      responseData['text_response'] = ranked
+          .map((option) => option['id'].toString())
+          .join(',');
     }
 
     try {
@@ -117,14 +154,7 @@ class _AudienceScreenState extends State<AudienceScreen> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
+    AppToast.show(context, message, isError: isError);
   }
 
   @override
@@ -240,7 +270,18 @@ class _AudienceScreenState extends State<AudienceScreen> {
           if (type == 'polling' || type == 'quiz')
             _buildOptionsList(slide['options'] ?? [], slideId, isSubmitted)
           else if (type == 'word_cloud')
-            _buildWordCloudInput(slideId, isSubmitted),
+            _buildTextInput(slideId, isSubmitted, 'Ketik satu kata di sini...')
+          else if (type == 'likert')
+            _buildLikertInput(slideId, slide['options'] ?? [], isSubmitted)
+          else if (type == 'ranking')
+            _buildRankingInput(slideId, isSubmitted)
+          else if (type == 'qna')
+            _buildTextInput(
+              slideId,
+              isSubmitted,
+              'Tulis pertanyaan anonim...',
+              maxLines: 4,
+            ),
 
           const SizedBox(height: 32),
 
@@ -369,20 +410,136 @@ class _AudienceScreenState extends State<AudienceScreen> {
     );
   }
 
-  Widget _buildWordCloudInput(String slideId, bool isSubmitted) {
+  Widget _buildTextInput(
+    String slideId,
+    bool isSubmitted,
+    String hintText, {
+    int maxLines = 1,
+  }) {
     return TextField(
       controller: _textControllers[slideId],
       enabled: !isSubmitted,
       textAlign: TextAlign.center,
+      maxLines: maxLines,
       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       decoration: InputDecoration(
-        hintText: 'Ketik satu kata di sini...',
+        hintText: hintText,
         fillColor: isSubmitted ? Colors.grey.shade100 : Colors.white,
         contentPadding: const EdgeInsets.symmetric(
           vertical: 24,
           horizontal: 16,
         ),
       ),
+    );
+  }
+
+  Widget _buildLikertInput(
+    String slideId,
+    List<dynamic> options,
+    bool isSubmitted,
+  ) {
+    final value = _likertValues[slideId] ?? 3;
+    if (options.isEmpty) {
+      return const Center(
+        child: Text(
+          'Opsi skala belum tersedia.',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+    final selectedIndex = (value.round() - 1).clamp(0, options.length - 1);
+    final selectedText = options[selectedIndex]['text'];
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value.round().toString(),
+            style: const TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF4F46E5),
+            ),
+          ),
+          Text(
+            selectedText,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          Slider(
+            value: value,
+            min: 1,
+            max: 5,
+            divisions: 4,
+            label: selectedText,
+            onChanged: isSubmitted
+                ? null
+                : (newValue) => setState(() {
+                    _likertValues[slideId] = newValue;
+                  }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRankingInput(String slideId, bool isSubmitted) {
+    final ranking = _rankingOptions[slideId] ?? [];
+
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: ranking.length,
+      onReorder: isSubmitted
+          ? (_, _) {}
+          : (oldIndex, newIndex) {
+              setState(() {
+                if (oldIndex < newIndex) newIndex -= 1;
+                final item = ranking.removeAt(oldIndex);
+                ranking.insert(newIndex, item);
+              });
+            },
+      itemBuilder: (context, index) {
+        final option = ranking[index];
+        return Container(
+          key: ValueKey(option['id']),
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: const Color(0xFF4F46E5).withOpacity(0.1),
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    color: Color(0xFF4F46E5),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  option['text'],
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              const Icon(Icons.drag_handle_rounded, color: Colors.grey),
+            ],
+          ),
+        );
+      },
     );
   }
 }

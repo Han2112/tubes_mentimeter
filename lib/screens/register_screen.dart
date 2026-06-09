@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/app_toast.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -59,16 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Registrasi berhasil! Silakan login.'),
-              backgroundColor: Colors.green.shade600,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          );
+          AppToast.show(context, 'Registrasi berhasil! Silakan login.');
           // Kembali ke halaman login setelah sukses
           Navigator.pop(context);
         }
@@ -84,14 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
+    AppToast.show(context, message, isError: true);
   }
 
   @override

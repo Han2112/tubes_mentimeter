@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/app_toast.dart';
 
 class LiveAudienceScreen extends StatefulWidget {
   final String joinCode;
@@ -129,9 +130,10 @@ class _LiveAudienceScreenState extends State<LiveAudienceScreen> {
       await _supabase.from('responses').insert({
         'slide_id': _currentSlide!['id'],
         // Gunakan ID unik sementara dari waktu jika auth belum jalan 100%
-        'user_id':
-            _supabase.auth.currentUser?.id ??
-            DateTime.now().millisecondsSinceEpoch.toString(),
+        'user_id': _currentSlide!['type'] == 'qna'
+            ? 'anonymous-${DateTime.now().millisecondsSinceEpoch}'
+            : _supabase.auth.currentUser?.id ??
+                  DateTime.now().millisecondsSinceEpoch.toString(),
         'option_id': optionId,
         'text_response': textResponse,
       });
@@ -149,14 +151,7 @@ class _LiveAudienceScreenState extends State<LiveAudienceScreen> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
+    AppToast.show(context, message, isError: isError);
   }
 
   @override
@@ -266,6 +261,7 @@ class _LiveAudienceScreenState extends State<LiveAudienceScreen> {
           if (type == 'word_cloud') _buildWordCloudInput(),
           if (type == 'likert') _buildLikertInput(),
           if (type == 'ranking') _buildRankingInput(),
+          if (type == 'qna') _buildQnaInput(),
         ],
       ),
     );
@@ -332,6 +328,46 @@ class _LiveAudienceScreenState extends State<LiveAudienceScreen> {
           ),
           child: const Text(
             'Kirim Kata',
+            style: TextStyle(fontSize: 18, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQnaInput() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _textController,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: 'Tulis pertanyaan anonim...',
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () {
+            if (_textController.text.trim().isNotEmpty) {
+              _submitAnswer(textResponse: _textController.text.trim());
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            backgroundColor: const Color(0xFF4F46E5),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          child: const Text(
+            'Kirim Anonim',
             style: TextStyle(fontSize: 18, color: Colors.white),
           ),
         ),

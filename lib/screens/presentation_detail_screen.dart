@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'add_slide_screen.dart';
 import 'live_presentation_screen.dart';
+import '../widgets/app_toast.dart';
 
 class PresentationDetailScreen extends StatefulWidget {
   final String presentationId;
@@ -93,14 +94,7 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
+    AppToast.show(context, message, isError: isError);
   }
 
   void _navigateToAddSlide() {
@@ -298,7 +292,9 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
               slide['question'] ?? 'Tanpa Pertanyaan',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            subtitle: Text('Tipe: ${slide['type'].toString().toUpperCase()}'),
+            subtitle: Text(
+              'Tipe: ${_typeLabel(slide['type'].toString())} | Timer: ${slide['timer_seconds'] ?? 30} detik',
+            ),
             trailing: IconButton(
               icon: const Icon(
                 Icons.delete_outline_rounded,
@@ -310,5 +306,24 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
         );
       },
     );
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'polling':
+        return 'Polling';
+      case 'quiz':
+        return 'Kuis';
+      case 'word_cloud':
+        return 'Word Cloud';
+      case 'likert':
+        return 'Likert';
+      case 'ranking':
+        return 'Ranking';
+      case 'qna':
+        return 'Q&A Anonim';
+      default:
+        return type.toUpperCase();
+    }
   }
 }

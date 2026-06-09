@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import '../widgets/app_toast.dart';
 
 class AddSlideScreen extends StatefulWidget {
   final String presentationId;
@@ -16,6 +17,7 @@ class AddSlideScreen extends StatefulWidget {
 class _AddSlideScreenState extends State<AddSlideScreen> {
   final _supabase = Supabase.instance.client;
   final _questionController = TextEditingController();
+  final _timerController = TextEditingController(text: '30');
 
   String _selectedType = 'polling';
   bool _isLoading = false;
@@ -31,6 +33,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
   @override
   void dispose() {
     _questionController.dispose();
+    _timerController.dispose();
     for (var controller in _optionControllers) {
       controller.dispose();
     }
@@ -85,7 +88,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
       return;
     }
 
-    if (_selectedType != 'word_cloud') {
+    if (_needsOptions) {
       for (var controller in _optionControllers) {
         if (controller.text.trim().isEmpty) {
           _showSnackBar(
@@ -131,23 +134,35 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
           .eq('presentation_id', widget.presentationId);
       final int orderNum = (countResponse as List).length + 1;
 
-      // Insert Slide
-      final slideResponse = await _supabase
-          .from('slides')
-          .insert({
-            'presentation_id': widget.presentationId,
-            'question': _questionController.text.trim(),
-            'type': _selectedType,
-            'image_url': imageUrl,
-            'order_num': orderNum,
-          })
-          .select()
-          .single();
+      final slideData = {
+        'presentation_id': widget.presentationId,
+        'question': _questionController.text.trim(),
+        'type': _selectedType,
+        'image_url': imageUrl,
+        'order_num': orderNum,
+        'timer_seconds': int.tryParse(_timerController.text.trim()) ?? 30,
+      };
+
+      Map<String, dynamic> slideResponse;
+      try {
+        slideResponse = await _supabase
+            .from('slides')
+            .insert(slideData)
+            .select()
+            .single();
+      } catch (_) {
+        slideData.remove('timer_seconds');
+        slideResponse = await _supabase
+            .from('slides')
+            .insert(slideData)
+            .select()
+            .single();
+      }
 
       final slideId = slideResponse['id'];
 
       // Insert Opsi
-      if (_selectedType != 'word_cloud') {
+      if (_needsOptions) {
         final List<Map<String, dynamic>> optionsData = [];
 
         for (int i = 0; i < _optionControllers.length; i++) {
@@ -175,16 +190,37 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
     }
   }
 
+  bool get _needsOptions =>
+      _selectedType != 'word_cloud' && _selectedType != 'qna';
+
+  void _resetOptionsForType(String type) {
+    for (final controller in _optionControllers) {
+      controller.dispose();
+    }
+    _optionControllers.clear();
+
+    if (type == 'likert') {
+      _optionControllers.addAll([
+        TextEditingController(text: 'Sangat Tidak Setuju'),
+        TextEditingController(text: 'Tidak Setuju'),
+        TextEditingController(text: 'Netral'),
+        TextEditingController(text: 'Setuju'),
+        TextEditingController(text: 'Sangat Setuju'),
+      ]);
+    } else if (type == 'word_cloud' || type == 'qna') {
+      return;
+    } else {
+      _optionControllers.addAll([
+        TextEditingController(),
+        TextEditingController(),
+      ]);
+    }
+    _correctOptionIndex = 0;
+  }
+
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
+    AppToast.show(context, message, isError: isError);
   }
 
   @override
@@ -247,38 +283,27 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                         value: 'ranking',
                         child: Text('Ranking (Urutan)'),
                       ),
+                      DropdownMenuItem(value: 'qna', child: Text('Q&A Anonim')),
                     ],
                     onChanged: (value) {
                       if (value != null) {
                         setState(() {
                           _selectedType = value;
-
-                          // Otomatisasi untuk tipe tertentu
-                          if (_selectedType == 'likert') {
-                            _optionControllers.clear();
-                            _optionControllers.addAll([
-                              TextEditingController(
-                                text: 'Sangat Tidak Setuju',
-                              ),
-                              TextEditingController(text: 'Tidak Setuju'),
-                              TextEditingController(text: 'Netral'),
-                              TextEditingController(text: 'Setuju'),
-                              TextEditingController(text: 'Sangat Setuju'),
-                            ]);
-                          } else if (_selectedType == 'word_cloud') {
-                            _optionControllers.clear();
-                          } else {
-                            if (_optionControllers.length < 2) {
-                              _optionControllers.clear();
-                              _optionControllers.addAll([
-                                TextEditingController(),
-                                TextEditingController(),
-                              ]);
-                            }
-                          }
+                          _resetOptionsForType(value);
                         });
                       }
                     },
+                  ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: _timerController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Timer per pertanyaan',
+                      hintText: '30',
+                      suffixText: 'detik',
+                      prefixIcon: Icon(Icons.timer_outlined),
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -372,7 +397,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                     ),
                   const SizedBox(height: 24),
 
-                  if (_selectedType != 'word_cloud') ...[
+                  if (_needsOptions) ...[
                     const Divider(),
                     const SizedBox(height: 16),
                     Row(

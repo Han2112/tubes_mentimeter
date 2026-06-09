@@ -6,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 import 'dashboard_screen.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
+import '../widgets/app_toast.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,9 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Login berhasil!')));
+        AppToast.show(context, 'Login berhasil!');
         // Arahkan ke Dashboard
         Navigator.pushReplacement(
           context,
@@ -89,9 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final session = _supabase.auth.currentSession;
         if (session != null) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Selamat datang kembali!')),
-            );
+            AppToast.show(context, 'Selamat datang kembali!');
             // Arahkan ke Dashboard
             Navigator.pushReplacement(
               context,
@@ -111,14 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
+    AppToast.show(context, message, isError: true);
   }
 
   @override
