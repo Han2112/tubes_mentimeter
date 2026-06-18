@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/dummy_slide_service.dart';
 import '../widgets/app_toast.dart';
 
 // Tambahan Import untuk navigasi ke halaman detail
@@ -17,10 +18,12 @@ class _PresentationsScreenState extends State<PresentationsScreen> {
   final _supabase = Supabase.instance.client;
   bool _isLoading = true;
   List<Map<String, dynamic>> _presentations = [];
+  late final DummySlideService _dummySlideService;
 
   @override
   void initState() {
     super.initState();
+    _dummySlideService = DummySlideService(_supabase);
     _fetchPresentations();
   }
 
@@ -55,13 +58,26 @@ class _PresentationsScreenState extends State<PresentationsScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await _supabase.from('presentations').insert({
-        'user_id': userId,
-        'title': title.trim(),
-        'join_code': joinCode,
-      });
+      final presentation = await _supabase
+          .from('presentations')
+          .insert({
+            'user_id': userId,
+            'title': title.trim(),
+            'join_code': joinCode,
+          })
+          .select()
+          .single();
 
-      _showSnackBar('Presentasi berhasil dibuat!');
+      try {
+        await _dummySlideService.createForPresentation(presentation['id']);
+        _showSnackBar('Presentasi berhasil dibuat dengan dummy pertanyaan!');
+      } catch (dummyError) {
+        _showSnackBar(
+          'Presentasi berhasil dibuat, tapi dummy pertanyaan gagal ditambahkan.',
+          isError: true,
+        );
+      }
+
       _fetchPresentations(); // Refresh list
     } catch (e) {
       _showSnackBar('Gagal membuat presentasi.', isError: true);
@@ -78,6 +94,23 @@ class _PresentationsScreenState extends State<PresentationsScreen> {
       _fetchPresentations(); // Refresh list
     } catch (e) {
       _showSnackBar('Gagal menghapus presentasi.', isError: true);
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _updatePresentation(String id, String title) async {
+    if (title.trim().isEmpty) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _supabase
+          .from('presentations')
+          .update({'title': title.trim()})
+          .eq('id', id);
+      _showSnackBar('Presentasi berhasil diperbarui.');
+      _fetchPresentations();
+    } catch (e) {
+      _showSnackBar('Gagal memperbarui presentasi.', isError: true);
       setState(() => _isLoading = false);
     }
   }
@@ -114,6 +147,45 @@ class _PresentationsScreenState extends State<PresentationsScreen> {
               _createPresentation(titleController.text);
             },
             child: const Text('Buat'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(Map<String, dynamic> presentation) {
+    final titleController = TextEditingController(
+      text: presentation['title'] ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Edit Presentasi',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: titleController,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            hintText: 'Masukkan judul presentasi...',
+            prefixIcon: Icon(Icons.title_rounded),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _updatePresentation(presentation['id'], titleController.text);
+            },
+            child: const Text('Simpan'),
           ),
         ],
       ),
@@ -332,13 +404,28 @@ class _PresentationsScreenState extends State<PresentationsScreen> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.delete_outline_rounded,
-                        color: Color(0xFFE5E7EB),
-                        size: 20,
-                      ),
-                      onPressed: () => _confirmDelete(p['id'], p['title']),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Edit presentasi',
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            color: Color(0xFF9CA3AF),
+                            size: 20,
+                          ),
+                          onPressed: () => _showEditDialog(p),
+                        ),
+                        IconButton(
+                          tooltip: 'Hapus presentasi',
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Colors.redAccent,
+                            size: 20,
+                          ),
+                          onPressed: () => _confirmDelete(p['id'], p['title']),
+                        ),
+                      ],
                     ),
                   ],
                 ),

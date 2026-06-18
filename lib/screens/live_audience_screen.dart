@@ -244,14 +244,31 @@ class _LiveAudienceScreenState extends State<LiveAudienceScreen> {
                 ),
               ],
             ),
-            child: Text(
-              question,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1F2937),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_currentSlide!['image_url'] != null &&
+                    _currentSlide!['image_url'].toString().isNotEmpty) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      _currentSlide!['image_url'],
+                      height: 200,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                Text(
+                  question,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 32),

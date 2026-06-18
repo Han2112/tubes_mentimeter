@@ -7,11 +7,20 @@ import '../widgets/app_toast.dart';
 
 class AddSlideScreen extends StatefulWidget {
   final String presentationId;
+  final Map<String, dynamic>? slide;
 
-  const AddSlideScreen({super.key, required this.presentationId});
+  const AddSlideScreen({super.key, required this.presentationId, this.slide});
 
   @override
   State<AddSlideScreen> createState() => _AddSlideScreenState();
+}
+
+class _OptionInput {
+  final String? id;
+  final TextEditingController controller;
+  bool isCorrect;
+
+  _OptionInput({this.id, required this.controller, this.isCorrect = false});
 }
 
 class _AddSlideScreenState extends State<AddSlideScreen> {
@@ -22,20 +31,76 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
   String _selectedType = 'polling';
   bool _isLoading = false;
   XFile? _imageFile;
+  String? _existingImageUrl;
+  final Set<String> _originalOptionIds = {};
 
-  final List<TextEditingController> _optionControllers = [
-    TextEditingController(),
-    TextEditingController(),
-  ];
+  final List<_OptionInput> _options = [];
 
   int _correctOptionIndex = 0;
+  bool get _isEditing => widget.slide != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      _loadSlideForEditing();
+    } else {
+      _resetOptionsForType(_selectedType);
+    }
+  }
+
+  Future<void> _loadSlideForEditing() async {
+    final slide = widget.slide!;
+    _questionController.text = (slide['question'] ?? '').toString();
+    _timerController.text = (slide['timer_seconds'] ?? 30).toString();
+    _selectedType = (slide['type'] ?? 'polling').toString();
+    _existingImageUrl = slide['image_url']?.toString();
+
+    List<dynamic> slideOptions;
+    if (slide['options'] is List) {
+      slideOptions = slide['options'] as List<dynamic>;
+    } else {
+      setState(() => _isLoading = true);
+      try {
+        slideOptions = await _supabase
+            .from('options')
+            .select()
+            .eq('slide_id', slide['id'])
+            .order('created_at', ascending: true);
+      } catch (_) {
+        slideOptions = [];
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+
+    for (final option in slideOptions) {
+      final id = option['id']?.toString();
+      if (id != null) _originalOptionIds.add(id);
+      _options.add(
+        _OptionInput(
+          id: id,
+          controller: TextEditingController(text: option['text'] ?? ''),
+          isCorrect: option['is_correct'] == true,
+        ),
+      );
+    }
+
+    if (_needsOptions && _options.isEmpty) {
+      _resetOptionsForType(_selectedType);
+    }
+
+    final correctIndex = _options.indexWhere((option) => option.isCorrect);
+    _correctOptionIndex = correctIndex == -1 ? 0 : correctIndex;
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
     _questionController.dispose();
     _timerController.dispose();
-    for (var controller in _optionControllers) {
-      controller.dispose();
+    for (var option in _options) {
+      option.controller.dispose();
     }
     super.dispose();
   }
@@ -59,24 +124,24 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
   }
 
   void _addOption() {
-    if (_optionControllers.length >= 6) {
+    if (_options.length >= 6) {
       _showSnackBar('Maksimal 6 opsi jawaban.');
       return;
     }
     setState(() {
-      _optionControllers.add(TextEditingController());
+      _options.add(_OptionInput(controller: TextEditingController()));
     });
   }
 
   void _removeOption(int index) {
-    if (_optionControllers.length <= 2) {
+    if (_options.length <= 2) {
       _showSnackBar('Minimal harus ada 2 opsi jawaban.');
       return;
     }
     setState(() {
-      _optionControllers[index].dispose();
-      _optionControllers.removeAt(index);
-      if (_correctOptionIndex >= _optionControllers.length) {
+      _options[index].controller.dispose();
+      _options.removeAt(index);
+      if (_correctOptionIndex >= _options.length) {
         _correctOptionIndex = 0;
       }
     });
@@ -89,8 +154,8 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
     }
 
     if (_needsOptions) {
-      for (var controller in _optionControllers) {
-        if (controller.text.trim().isEmpty) {
+      for (var option in _options) {
+        if (option.controller.text.trim().isEmpty) {
           _showSnackBar(
             'Opsi jawaban tidak boleh ada yang kosong.',
             isError: true,
@@ -103,7 +168,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
     setState(() => _isLoading = true);
 
     try {
-      String? imageUrl;
+      String? imageUrl = _existingImageUrl;
 
       // Logika Upload Gambar (Kompatibel untuk Web & Mobile)
       if (_imageFile != null) {
@@ -127,12 +192,14 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
             .getPublicUrl(fileName);
       }
 
-      // Dapatkan urutan slide
-      final countResponse = await _supabase
-          .from('slides')
-          .select('id')
-          .eq('presentation_id', widget.presentationId);
-      final int orderNum = (countResponse as List).length + 1;
+      int orderNum = widget.slide?['order_num'] ?? 1;
+      if (!_isEditing) {
+        final countResponse = await _supabase
+            .from('slides')
+            .select('id')
+            .eq('presentation_id', widget.presentationId);
+        orderNum = (countResponse as List).length + 1;
+      }
 
       final slideData = {
         'presentation_id': widget.presentationId,
@@ -145,42 +212,84 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
 
       Map<String, dynamic> slideResponse;
       try {
-        slideResponse = await _supabase
-            .from('slides')
-            .insert(slideData)
-            .select()
-            .single();
+        if (_isEditing) {
+          slideResponse = await _supabase
+              .from('slides')
+              .update(slideData)
+              .eq('id', widget.slide!['id'])
+              .select()
+              .single();
+        } else {
+          slideResponse = await _supabase
+              .from('slides')
+              .insert(slideData)
+              .select()
+              .single();
+        }
       } catch (_) {
         slideData.remove('timer_seconds');
-        slideResponse = await _supabase
-            .from('slides')
-            .insert(slideData)
-            .select()
-            .single();
+        if (_isEditing) {
+          slideResponse = await _supabase
+              .from('slides')
+              .update(slideData)
+              .eq('id', widget.slide!['id'])
+              .select()
+              .single();
+        } else {
+          slideResponse = await _supabase
+              .from('slides')
+              .insert(slideData)
+              .select()
+              .single();
+        }
       }
 
       final slideId = slideResponse['id'];
 
-      // Insert Opsi
+      // Simpan Opsi
       if (_needsOptions) {
-        final List<Map<String, dynamic>> optionsData = [];
+        final keptIds = <String>{};
+        final List<Map<String, dynamic>> newOptions = [];
 
-        for (int i = 0; i < _optionControllers.length; i++) {
-          // Khusus ranking, simpan urutan default opsi di awal
-          optionsData.add({
+        for (int i = 0; i < _options.length; i++) {
+          final optionData = {
             'slide_id': slideId,
-            'text': _optionControllers[i].text.trim(),
+            'text': _options[i].controller.text.trim(),
             'is_correct': _selectedType == 'quiz'
                 ? (i == _correctOptionIndex)
                 : false,
-          });
+          };
+
+          if (_options[i].id == null) {
+            newOptions.add(optionData);
+          } else {
+            keptIds.add(_options[i].id!);
+            await _supabase
+                .from('options')
+                .update(optionData)
+                .eq('id', _options[i].id!);
+          }
         }
 
-        await _supabase.from('options').insert(optionsData);
+        if (newOptions.isNotEmpty) {
+          await _supabase.from('options').insert(newOptions);
+        }
+
+        for (final removedId in _originalOptionIds.difference(keptIds)) {
+          await _supabase.from('options').delete().eq('id', removedId);
+        }
+      } else if (_isEditing && _originalOptionIds.isNotEmpty) {
+        for (final optionId in _originalOptionIds) {
+          await _supabase.from('options').delete().eq('id', optionId);
+        }
       }
 
       if (mounted) {
-        _showSnackBar('Slide berhasil ditambahkan!');
+        _showSnackBar(
+          _isEditing
+              ? 'Slide berhasil diperbarui!'
+              : 'Slide berhasil ditambahkan!',
+        );
         Navigator.pop(context);
       }
     } catch (e) {
@@ -207,25 +316,27 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
   );
 
   void _resetOptionsForType(String type) {
-    for (final controller in _optionControllers) {
-      controller.dispose();
+    for (final option in _options) {
+      option.controller.dispose();
     }
-    _optionControllers.clear();
+    _options.clear();
 
     if (type == 'likert') {
-      _optionControllers.addAll([
-        TextEditingController(text: 'Sangat Tidak Setuju'),
-        TextEditingController(text: 'Tidak Setuju'),
-        TextEditingController(text: 'Netral'),
-        TextEditingController(text: 'Setuju'),
-        TextEditingController(text: 'Sangat Setuju'),
+      _options.addAll([
+        _OptionInput(
+          controller: TextEditingController(text: 'Sangat Tidak Setuju'),
+        ),
+        _OptionInput(controller: TextEditingController(text: 'Tidak Setuju')),
+        _OptionInput(controller: TextEditingController(text: 'Netral')),
+        _OptionInput(controller: TextEditingController(text: 'Setuju')),
+        _OptionInput(controller: TextEditingController(text: 'Sangat Setuju')),
       ]);
     } else if (type == 'word_cloud' || type == 'qna') {
       return;
     } else {
-      _optionControllers.addAll([
-        TextEditingController(),
-        TextEditingController(),
+      _options.addAll([
+        _OptionInput(controller: TextEditingController()),
+        _OptionInput(controller: TextEditingController()),
       ]);
     }
     _correctOptionIndex = 0;
@@ -241,8 +352,8 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Text(
-          'Tambah Slide',
+        title: Text(
+          _isEditing ? 'Edit Slide' : 'Tambah Slide',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
@@ -374,6 +485,15 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                                       width: double.infinity,
                                     ),
                             )
+                          : _existingImageUrl != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.network(
+                                _existingImageUrl!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                              ),
+                            )
                           : const Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -391,11 +511,14 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                             ),
                     ),
                   ),
-                  if (_imageFile != null)
+                  if (_imageFile != null || _existingImageUrl != null)
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
-                        onPressed: () => setState(() => _imageFile = null),
+                        onPressed: () => setState(() {
+                          _imageFile = null;
+                          _existingImageUrl = null;
+                        }),
                         icon: const Icon(
                           Icons.delete_rounded,
                           color: Colors.redAccent,
@@ -437,7 +560,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
                     ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _optionControllers.length,
+                      itemCount: _options.length,
                       separatorBuilder: (context, index) =>
                           const SizedBox(height: 12),
                       itemBuilder: (context, index) {
@@ -467,7 +590,7 @@ class _AddSlideScreenState extends State<AddSlideScreen> {
 
                             Expanded(
                               child: TextField(
-                                controller: _optionControllers[index],
+                                controller: _options[index].controller,
                                 decoration: InputDecoration(
                                   hintText: 'Opsi ${index + 1}',
                                   contentPadding: const EdgeInsets.symmetric(

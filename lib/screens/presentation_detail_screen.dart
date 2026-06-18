@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'add_slide_screen.dart';
 import 'live_presentation_screen.dart';
+import '../services/dummy_slide_service.dart';
+import '../services/report_export_service.dart';
 import '../widgets/app_toast.dart';
 
 class PresentationDetailScreen extends StatefulWidget {
@@ -26,10 +28,14 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
   final _supabase = Supabase.instance.client;
   bool _isLoading = true;
   List<Map<String, dynamic>> _slides = [];
+  late final DummySlideService _dummySlideService;
+  late final ReportExportService _reportExportService;
 
   @override
   void initState() {
     super.initState();
+    _dummySlideService = DummySlideService(_supabase);
+    _reportExportService = ReportExportService(_supabase);
     _fetchSlides();
   }
 
@@ -38,7 +44,7 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
     try {
       final response = await _supabase
           .from('slides')
-          .select()
+          .select('*, options(*)')
           .eq('presentation_id', widget.presentationId)
           .order('order_num', ascending: true);
 
@@ -107,6 +113,48 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
     ).then((_) => _fetchSlides());
   }
 
+  void _navigateToEditSlide(Map<String, dynamic> slide) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            AddSlideScreen(presentationId: widget.presentationId, slide: slide),
+      ),
+    ).then((_) => _fetchSlides());
+  }
+
+  Future<void> _downloadReport(String type) async {
+    try {
+      if (type == 'pdf') {
+        await _reportExportService.exportPdf(
+          presentationId: widget.presentationId,
+          title: widget.title,
+          joinCode: widget.joinCode,
+        );
+      } else {
+        await _reportExportService.exportExcel(
+          presentationId: widget.presentationId,
+          title: widget.title,
+        );
+      }
+    } catch (e) {
+      _showSnackBar('Gagal mengunduh laporan: $e', isError: true);
+    }
+  }
+
+  Future<void> _createDummyQuestions() async {
+    setState(() => _isLoading = true);
+    try {
+      await _dummySlideService.createForPresentation(widget.presentationId);
+      _showSnackBar('Dummy pertanyaan berhasil ditambahkan.');
+      await _fetchSlides();
+    } catch (e) {
+      debugPrint('Gagal menambahkan dummy pertanyaan: $e');
+      _showSnackBar('Gagal menambahkan dummy pertanyaan.', isError: true);
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -119,6 +167,17 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.download_rounded, color: Color(0xFF4F46E5)),
+            onSelected: _downloadReport,
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'pdf', child: Text('Download PDF')),
+              PopupMenuItem(value: 'excel', child: Text('Download Excel')),
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -268,9 +327,35 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Text(
-        'Belum ada slide. Tekan "Tambah Slide".',
-        style: TextStyle(color: Colors.grey.shade500),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.quiz_outlined, size: 56, color: Colors.grey.shade400),
+            const SizedBox(height: 14),
+            Text(
+              'Belum ada pertanyaan.',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Tambahkan slide manual atau isi dummy untuk demo.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: _createDummyQuestions,
+              icon: const Icon(Icons.auto_fix_high_rounded),
+              label: const Text('Isi Dummy Pertanyaan'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -356,13 +441,44 @@ class _PresentationDetailScreenState extends State<PresentationDetailScreen> {
                 ],
               ),
             ),
-            trailing: IconButton(
+            trailing: PopupMenuButton<String>(
               icon: const Icon(
-                Icons.delete_outline_rounded,
-                color: Color(0xFFE5E7EB),
-                size: 20,
+                Icons.more_vert_rounded,
+                color: Color(0xFF9CA3AF),
               ),
-              onPressed: () => _confirmDelete(slide['id']),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _navigateToEditSlide(slide);
+                } else if (value == 'delete') {
+                  _confirmDelete(slide['id']);
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_outlined, size: 18),
+                      SizedBox(width: 8),
+                      Text('Edit'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                        color: Colors.redAccent,
+                      ),
+                      SizedBox(width: 8),
+                      Text('Hapus'),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );

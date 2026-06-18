@@ -552,6 +552,19 @@ class _LivePresentationScreenState extends State<LivePresentationScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          if (slide['image_url'] != null &&
+              slide['image_url'].toString().isNotEmpty) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.network(
+                slide['image_url'],
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           Text(
             slide['question'],
             textAlign: TextAlign.center,
