@@ -34,6 +34,69 @@ class DummySlideService {
           'Sangat Setuju',
         ],
       ),
+      _DummySlide(
+        question: 'Urutkan fitur yang paling membantu saat presentasi.',
+        type: 'ranking',
+        options: [
+          'Polling cepat',
+          'Kuis interaktif',
+          'Word cloud',
+          'Q&A anonim',
+        ],
+      ),
+      _DummySlide(
+        question: 'Pertanyaan apa yang ingin kamu bahas lebih lanjut?',
+        type: 'qna',
+        options: const [],
+      ),
+      _DummySlide(
+        question: 'Bagian mana dari materi yang paling menarik?',
+        type: 'polling',
+        options: [
+          'Konsep utama',
+          'Demo aplikasi',
+          'Diskusi kasus',
+          'Latihan praktik',
+        ],
+      ),
+      _DummySlide(
+        question:
+            'Widget Flutter untuk membuat daftar yang bisa discroll adalah?',
+        type: 'quiz',
+        options: ['ListView', 'Container', 'TextField', 'SnackBar'],
+        correctIndex: 0,
+      ),
+      _DummySlide(
+        question: 'Tulis satu kata untuk menggambarkan tempo pembelajaran.',
+        type: 'word_cloud',
+        options: const [],
+      ),
+      _DummySlide(
+        question: 'Saya merasa siap mengerjakan tugas setelah sesi ini.',
+        type: 'likert',
+        options: [
+          'Sangat Tidak Siap',
+          'Tidak Siap',
+          'Cukup Siap',
+          'Siap',
+          'Sangat Siap',
+        ],
+      ),
+      _DummySlide(
+        question: 'Urutkan topik yang ingin diperdalam minggu depan.',
+        type: 'ranking',
+        options: [
+          'State management',
+          'Integrasi database',
+          'UI responsive',
+          'Deploy aplikasi',
+        ],
+      ),
+      _DummySlide(
+        question: 'Masukan apa yang ingin kamu sampaikan untuk sesi ini?',
+        type: 'qna',
+        options: const [],
+      ),
     ];
 
     for (var i = 0; i < samples.length; i++) {

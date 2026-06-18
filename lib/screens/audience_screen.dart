@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/local_presentation_server.dart';
 import '../widgets/app_toast.dart';
 
 class AudienceScreen extends StatefulWidget {
   final String presentationId;
   final String title;
+  final bool useLocalServer;
 
   const AudienceScreen({
     super.key,
     required this.presentationId,
     required this.title,
+    this.useLocalServer = false,
   });
 
   @override
@@ -52,11 +55,15 @@ class _AudienceScreenState extends State<AudienceScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await _supabase
-          .from('slides')
-          .select('*, options(*)')
-          .eq('presentation_id', widget.presentationId)
-          .order('order_num', ascending: true);
+      final response = widget.useLocalServer
+          ? await LocalPresentationServer.instance.fetchSlides(
+              widget.presentationId,
+            )
+          : await _supabase
+                .from('slides')
+                .select('*, options(*)')
+                .eq('presentation_id', widget.presentationId)
+                .order('order_num', ascending: true);
 
       for (var slide in response) {
         if (slide['type'] == 'word_cloud' || slide['type'] == 'qna') {
@@ -149,7 +156,11 @@ class _AudienceScreenState extends State<AudienceScreen> {
     }
 
     try {
-      await _supabase.from('responses').insert(responseData);
+      if (widget.useLocalServer) {
+        await LocalPresentationServer.instance.submitResponse(responseData);
+      } else {
+        await _supabase.from('responses').insert(responseData);
+      }
 
       setState(() {
         _submittedSlideIds.add(slideId);

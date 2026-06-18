@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'audience_screen.dart';
 import 'qr_scanner_screen.dart';
+import '../services/local_presentation_server.dart';
 import '../widgets/app_toast.dart';
 
 class JoinScreen extends StatefulWidget {
@@ -34,6 +35,25 @@ class _JoinScreenState extends State<JoinScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final localPresentation = await LocalPresentationServer.instance
+          .findPresentationByCode(code);
+
+      if (localPresentation != null) {
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AudienceScreen(
+                presentationId: localPresentation['id'],
+                title: localPresentation['title'],
+                useLocalServer: true,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
       // Cari presentasi berdasarkan join_code
       // Gunakan maybeSingle() agar tidak error 406 jika data tidak ditemukan
       final presentation = await _supabase

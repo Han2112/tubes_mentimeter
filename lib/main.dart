@@ -3,6 +3,7 @@ import 'package:mentimeter_app/screens/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'services/local_presentation_server.dart';
 
 void main() async {
   // Memastikan binding Flutter sudah terinisialisasi sebelum menjalankan kode async
@@ -16,6 +17,7 @@ void main() async {
     url: dotenv.env['SUPABASE_URL'] ?? '',
     anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
+  await LocalPresentationServer.instance.start(Supabase.instance.client);
 
   runApp(const MentimeterApp());
 }
