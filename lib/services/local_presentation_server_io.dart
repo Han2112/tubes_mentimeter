@@ -36,7 +36,9 @@ class LocalPresentationServer {
   }
 
   Future<Map<String, dynamic>?> findPresentationByCode(String code) async {
-    final response = await _getJson('/presentations/code/$code');
+    final response = await _getJson(
+      '/presentations/code/${Uri.encodeComponent(code)}',
+    );
     if (response == null) return null;
     return Map<String, dynamic>.from(response);
   }

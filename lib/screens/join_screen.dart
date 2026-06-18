@@ -25,9 +25,9 @@ class _JoinScreenState extends State<JoinScreen> {
   }
 
   Future<void> _joinPresentation() async {
-    final code = _codeController.text.trim();
+    final code = _normalizeJoinCode(_codeController.text);
 
-    if (code.isEmpty || code.length < 6) {
+    if (code == null) {
       _showSnackBar('Masukkan 6 digit kode dengan benar.', isError: true);
       return;
     }
@@ -35,8 +35,7 @@ class _JoinScreenState extends State<JoinScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final localPresentation = await LocalPresentationServer.instance
-          .findPresentationByCode(code);
+      final localPresentation = await _findLocalPresentation(code);
 
       if (localPresentation != null) {
         if (mounted) {
@@ -85,6 +84,23 @@ class _JoinScreenState extends State<JoinScreen> {
       _showSnackBar('Terjadi kesalahan saat mencari kelas.', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String? _normalizeJoinCode(String input) {
+    final digitsOnly = input.replaceAll(RegExp(r'[^0-9]'), '');
+    final match = RegExp(r'\d{6}').firstMatch(digitsOnly);
+    return match?.group(0);
+  }
+
+  Future<Map<String, dynamic>?> _findLocalPresentation(String code) async {
+    try {
+      return await LocalPresentationServer.instance.findPresentationByCode(
+        code,
+      );
+    } catch (e) {
+      debugPrint('Local presentation lookup failed: $e');
+      return null;
     }
   }
 
@@ -242,8 +258,11 @@ class _JoinScreenState extends State<JoinScreen> {
 
                     // Jika mendapatkan kode, masukkan ke controller
                     if (scannedCode != null) {
+                      final normalizedCode = _normalizeJoinCode(
+                        scannedCode.toString(),
+                      );
                       setState(() {
-                        _codeController.text = scannedCode;
+                        _codeController.text = normalizedCode ?? '';
                       });
                       // Langsung eksekusi join
                       _joinPresentation();

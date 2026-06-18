@@ -52,12 +52,11 @@ class _PresentationsScreenState extends State<PresentationsScreen> {
   Future<void> _createPresentation(String title) async {
     if (title.trim().isEmpty) return;
 
-    // Generate 6 digit angka random untuk Join Code
-    final String joinCode = (Random().nextInt(900000) + 100000).toString();
     final userId = _supabase.auth.currentUser!.id;
 
     setState(() => _isLoading = true);
     try {
+      final joinCode = await _generateUniqueJoinCode();
       final presentation = await _supabase
           .from('presentations')
           .insert({
@@ -83,6 +82,21 @@ class _PresentationsScreenState extends State<PresentationsScreen> {
       _showSnackBar('Gagal membuat presentasi.', isError: true);
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<String> _generateUniqueJoinCode() async {
+    for (var attempt = 0; attempt < 10; attempt++) {
+      final code = (Random().nextInt(900000) + 100000).toString();
+      final existing = await _supabase
+          .from('presentations')
+          .select('id')
+          .eq('join_code', code)
+          .maybeSingle();
+
+      if (existing == null) return code;
+    }
+
+    throw Exception('Gagal membuat kode presentasi unik.');
   }
 
   // Menghapus Presentasi
